@@ -46,7 +46,7 @@ function FormSection({
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="pl-11">
+      <div className="pl-0 sm:pl-11">
         {children}
       </div>
     </div>
@@ -93,12 +93,12 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
       owner_id: ownerId === "unassigned" ? null : ownerId,
       name: formData.get("name") as string,
       address: formData.get("address") as string,
-      city: formData.get("city") as string,
-      state: formData.get("state") as string,
+      city: (formData.get("city") as string).trim(),
+      state: (formData.get("state") as string).trim().toUpperCase(),
       zip_code: formData.get("zip_code") as string,
       property_type: formData.get("property_type") as string,
-      bedrooms: parseInt(formData.get("bedrooms") as string) || 1,
-      bathrooms: parseFloat(formData.get("bathrooms") as string) || 1,
+      bedrooms: Number(formData.get("bedrooms")),
+      bathrooms: Number(formData.get("bathrooms")),
       square_feet: parseInt(formData.get("square_feet") as string) || null,
       monthly_rent: parseFloat(formData.get("monthly_rent") as string) || 0,
       status: formData.get("status") as string,
@@ -106,6 +106,11 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
       updated_at: new Date().toISOString(),
     }
 
+    if (data.city.toLowerCase() === "greencaslte") {
+      setError("City appears misspelled. Use Greencastle.")
+      setLoading(false)
+      return
+    }
     const supabase = createClient()
 
     if (isEditing) {
@@ -137,6 +142,7 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
+      <datalist id="known-cities"><option value="Greencastle" /></datalist>
       <Card>
         <CardHeader className="border-b">
           <div className="flex items-center gap-3">
@@ -237,6 +243,8 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
                     id="city"
                     name="city"
                     placeholder="San Francisco"
+                    autoComplete="address-level2"
+                    list="known-cities"
                     defaultValue={property?.city}
                     required
                   />
@@ -250,6 +258,7 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
                     defaultValue={property?.state}
                     required
                     maxLength={2}
+                    pattern="[A-Za-z]{2}"
                   />
                 </div>
                 <div className="space-y-2">
@@ -258,6 +267,8 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
                     id="zip_code"
                     name="zip_code"
                     placeholder="94102"
+                    pattern="[0-9]{5}(-[0-9]{4})?"
+                    autoComplete="postal-code"
                     defaultValue={property?.zip_code}
                     required
                   />
@@ -375,7 +386,7 @@ export function PropertyForm({ property, userId }: PropertyFormProps) {
           </FormSection>
 
           {/* Actions */}
-          <div className="flex gap-4 pt-4 border-t">
+          <div className="flex flex-wrap gap-4 pt-4 border-t">
             <Button type="submit" disabled={loading} size="lg">
               {loading && <Spinner className="mr-2 h-4 w-4" />}
               {isEditing ? "Save Changes" : "Add Property"}

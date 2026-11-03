@@ -62,7 +62,7 @@ export default async function InvoiceDetailPage({
   const supabase = await createClient()
 
   const { data: invoice, error } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("*, tenant:tenants(id, first_name, last_name, email, phone, lease_start, lease_end), property:properties(id, name, address, city, state, zip_code)")
     .eq("id", id)
     .single()

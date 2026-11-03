@@ -154,6 +154,7 @@ export default function HomePage() {
               </ul>
             </div>
             <div className="bg-card border border-border rounded-2xl p-8">
+              <p className="mb-4 text-sm font-medium text-muted-foreground">Example dashboard — illustrative figures, not account data</p>
               <div className="space-y-6">
                 <div className="flex items-center justify-between p-4 bg-background rounded-lg">
                   <div>

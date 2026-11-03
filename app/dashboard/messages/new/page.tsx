@@ -16,7 +16,7 @@ export default async function NewMessagePage({
   }
 
   const { data: tenants } = await supabase
-    .from("tenants")
+    .from("visible_tenants")
     .select("*")
     .eq("status", "active")
     .order("first_name")

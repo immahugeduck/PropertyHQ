@@ -1,3 +1,5 @@
+import { summarizePayments } from "@/lib/financial-summary"
+import { DeletePaymentButton } from "@/components/payments/delete-payment-button"
 import { createClient } from "@/lib/supabase/server"
 import type { RentPayment } from "@/lib/types"
 import Link from "next/link"
@@ -10,7 +12,7 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
   }).format(amount)
 }
 
@@ -34,7 +36,7 @@ export default async function PaymentsPage() {
   const supabase = await createClient()
 
   const { data: payments, error } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("*, tenant:tenants(id, first_name, last_name), property:properties(id, name)")
     .order("due_date", { ascending: false })
 
@@ -42,24 +44,20 @@ export default async function PaymentsPage() {
     console.error("Error fetching payments:", error)
   }
 
-  // Calculate stats
-  const allPayments = payments || []
-  const paidPayments = allPayments.filter(p => p.status === "paid")
-  const pendingPayments = allPayments.filter(p => p.status === "pending")
-  const overduePayments = allPayments.filter(p => p.status === "overdue")
-
-  const totalCollected = paidPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
-  const totalPending = pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
-  const totalOverdue = overduePayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  if (error) throw new Error("Unable to load payments. Please retry.")
+  const totals = summarizePayments(payments || [])
+  const totalCollected = totals.collected
+  const totalPending = totals.pending
+  const totalOverdue = totals.overdue
 
   return (
     <div className="space-y-6 pt-12 lg:pt-0">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Payments</h1>
-          <p className="text-muted-foreground">Track and manage rent payments</p>
+          <p className="text-muted-foreground">All-time rent payments · overdue includes unpaid balances after the grace period</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href="/dashboard/payments/generate">
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -151,7 +149,7 @@ export default async function PaymentsPage() {
                           variant="outline"
                           className={statusColors[payment.status as keyof typeof statusColors]}
                         >
-                          {payment.status}
+                          {payment.status} {payment.is_demo && " · Test/demo"}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
@@ -175,6 +173,10 @@ export default async function PaymentsPage() {
                       <span className="text-muted-foreground">Due: </span>
                       {formatDate(payment.due_date)}
                     </p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Button asChild size="sm" variant="outline"><Link href={`/dashboard/payments/record?payment=${payment.id}`}>Edit</Link></Button>
+                      <DeletePaymentButton id={payment.id} />
+                    </div>
                     {payment.paid_date && (
                       <p className="text-sm text-green-500">
                         Paid: {formatDate(payment.paid_date)}

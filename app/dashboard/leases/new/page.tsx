@@ -22,7 +22,7 @@ export default async function NewLeasePage({
   const [templatesRes, tenantsRes] = await Promise.all([
     supabase.from("lease_templates").select("*").eq("user_id", user.id).order("name"),
     supabase
-      .from("tenants")
+      .from("visible_tenants")
       .select("id, first_name, last_name, property:properties(name)")
       .eq("user_id", user.id)
       .order("first_name"),

@@ -81,7 +81,7 @@ export default async function PropertyDetailPage({
       .eq("property_id", id)
       .eq("status", "active"),
     supabase
-      .from("rent_payments")
+      .from("payment_balances")
       .select("*, tenant:tenants(first_name, last_name)")
       .eq("property_id", id)
       .order("due_date", { ascending: false })

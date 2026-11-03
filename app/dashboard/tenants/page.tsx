@@ -33,7 +33,7 @@ export default async function TenantsPage() {
   const supabase = await createClient()
 
   const { data: tenants, error } = await supabase
-    .from("tenants")
+    .from("visible_tenants")
     .select("*, property:properties(id, name, address)")
     .order("created_at", { ascending: false })
 
@@ -81,7 +81,7 @@ export default async function TenantsPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="font-semibold text-lg">
-                        {tenant.first_name} {tenant.last_name}
+                        {tenant.first_name} {tenant.last_name} {tenant.is_demo && <Badge variant="outline">Test/demo</Badge>}
                       </h3>
                       <Badge
                         variant="outline"

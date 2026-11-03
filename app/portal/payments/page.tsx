@@ -35,15 +35,15 @@ export default async function PortalPaymentsPage() {
 
   const supabase = await createClient()
   const { data: payments } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("*, property:properties(name)")
     .eq("tenant_id", tenant.id)
     .order("due_date", { ascending: false })
 
   const all = payments || []
   const outstanding = all.filter((p) => p.status === "pending" || p.status === "overdue")
-  const totalDue = outstanding.reduce((s, p) => s + Number(p.amount || 0), 0)
-  const totalPaid = all.filter((p) => p.status === "paid").reduce((s, p) => s + Number(p.amount || 0), 0)
+  const totalDue = outstanding.reduce((s, p) => s + Number(p.balance_due ?? p.amount ?? 0), 0)
+  const totalPaid = all.reduce((s, p) => s + Number(p.amount_paid ?? 0), 0)
 
   return (
     <div className="space-y-6">
