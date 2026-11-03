@@ -38,6 +38,7 @@ export async function createLease({
     .eq("user_id", user.id)
     .single()
   if (!tenant) return { error: "Tenant not found" }
+  if (!tenant.property_id) return { error: "Assign a property to this tenant before creating a lease." }
 
   const managerName = await getFromName(supabase, user.id)
   const values = resolveAutofill(template.fields as LeaseTemplateField[], {
@@ -117,6 +118,8 @@ export async function sendLease(leaseId: string) {
     return { error: "This lease has already been signed and can't be sent again." }
   if (lease.status === "voided")
     return { error: "This lease has been voided." }
+  if (!lease.starts_on || !lease.ends_on || !lease.monthly_rent || !lease.rent_due_day)
+    return { error: "Save lease billing terms before sending for signature." }
   if (!lease.tenant?.auth_user_id)
     return { error: "This tenant has not activated their portal yet. Invite them first." }
 

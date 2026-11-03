@@ -19,6 +19,8 @@ export interface Property {
 }
 
 export interface Tenant {
+  is_demo?: boolean
+  rent_due_day?: number
   id: string
   user_id: string
   property_id: string | null
@@ -89,6 +91,10 @@ export interface PropertyOwner {
 }
 
 export interface RentPayment {
+  amount_paid?: number
+  balance_due?: number
+  lease_id?: string | null
+  is_demo?: boolean
   id: string
   user_id: string
   tenant_id: string
@@ -302,6 +308,10 @@ export interface LeaseTemplate {
 export type LeaseStatus = 'draft' | 'sent' | 'signed' | 'voided'
 
 export interface Lease {
+  starts_on?: string | null
+  ends_on?: string | null
+  monthly_rent?: number | null
+  rent_due_day?: number | null
   id: string
   user_id: string
   template_id: string | null

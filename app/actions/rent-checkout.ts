@@ -37,7 +37,7 @@ export async function createRentCheckout(invoiceId: string): Promise<{ url?: str
   if (error || !invoice) return { error: "Invoice not found" }
   if (invoice.status === "paid") return { error: "This invoice is already paid" }
 
-  const amountInCents = Math.round(Number(invoice.amount) * 100)
+  const amountInCents = Math.round((Number(invoice.amount) - Number(invoice.amount_paid || 0)) * 100)
   if (!amountInCents || amountInCents < 50) return { error: "Invalid invoice amount" }
 
   const baseUrl = await getBaseUrl()

@@ -31,6 +31,7 @@ interface ReportFiltersProps {
 }
 
 const PRESETS = [
+  { label: "All Time", value: "all-time" },
   { label: "This Month", value: "this-month" },
   { label: "Last Month", value: "last-month" },
   { label: "This Quarter", value: "this-quarter" },

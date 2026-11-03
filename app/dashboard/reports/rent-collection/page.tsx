@@ -1,3 +1,4 @@
+import { summarizePayments } from "@/lib/financial-summary"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -46,10 +47,10 @@ export default async function RentCollectionPage({
 
   const [{ data: properties }, { data: tenants }, { data: rawPayments }] = await Promise.all([
     supabase.from("properties").select("id, name").eq("user_id", user.id).order("name"),
-    supabase.from("tenants").select("id, first_name, last_name").eq("user_id", user.id).order("last_name"),
+    supabase.from("visible_tenants").select("id, first_name, last_name").eq("user_id", user.id).order("last_name"),
     supabase
-      .from("rent_payments")
-      .select("id, amount, due_date, paid_date, status, payment_method, property_id, tenant_id, tenants(first_name, last_name), properties(name)")
+      .from("payment_balances")
+      .select("id, amount, amount_paid, balance_due, due_date, paid_date, status, payment_method, property_id, tenant_id, tenants(first_name, last_name), properties(name)")
       .eq("user_id", user.id)
       .gte("due_date", from)
       .lte("due_date", to)
@@ -62,10 +63,11 @@ export default async function RentCollectionPage({
     return true
   }) ?? []
 
-  const totalCharged = payments.reduce((s, p) => s + Number(p.amount), 0)
-  const totalPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + Number(p.amount), 0)
-  const totalPending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0)
-  const totalOverdue = payments.filter((p) => p.status === "overdue").reduce((s, p) => s + Number(p.amount), 0)
+  const totals = summarizePayments(payments)
+  const totalCharged = totals.charged
+  const totalPaid = totals.collected
+  const totalPending = totals.pending
+  const totalOverdue = totals.overdue
   const collectionRate = totalCharged > 0 ? ((totalPaid / totalCharged) * 100).toFixed(1) : "0.0"
 
   const csvData = payments.map((p) => ({

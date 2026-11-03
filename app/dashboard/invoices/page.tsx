@@ -56,7 +56,7 @@ export default async function InvoicesPage({
   const supabase = await createClient()
 
   let query = supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("*, tenant:tenants(id, first_name, last_name, email), property:properties(id, name)")
     .order("due_date", { ascending: false })
 

@@ -17,7 +17,7 @@ export default async function NewMaintenancePage({
 
   const [propertiesResult, tenantsResult] = await Promise.all([
     supabase.from("properties").select("*").order("name"),
-    supabase.from("tenants").select("*").eq("status", "active").order("first_name"),
+    supabase.from("visible_tenants").select("*").eq("status", "active").order("first_name"),
   ])
 
   return (

@@ -1,3 +1,4 @@
+import { LeaseBillingForm } from "@/components/leases/lease-billing-form"
 import { createClient } from "@/lib/supabase/server"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
@@ -42,6 +43,7 @@ export default async function LeaseDetailPage({
         </p>
       </div>
 
+      <LeaseBillingForm lease={lease as unknown as Lease} />
       {template ? (
         <LeaseEditor lease={lease as unknown as Lease} template={template} />
       ) : (

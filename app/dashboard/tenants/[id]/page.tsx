@@ -73,7 +73,7 @@ export default async function TenantDetailPage({
 
   // Fetch payment history
   const { data: payments } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("*")
     .eq("tenant_id", id)
     .order("due_date", { ascending: false })

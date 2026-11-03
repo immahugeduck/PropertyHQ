@@ -67,6 +67,13 @@ describe("createRentCheckout", () => {
     expect(sessionsCreate).not.toHaveBeenCalled()
   })
 
+  it("charges only the unpaid balance on a partial invoice", async () => {
+    createClient.mockResolvedValue(supabaseReturning({ id:"inv-1",user_id:"manager-1",amount:800,amount_paid:300,status:"partial",due_date:"2026-10-01" }).client)
+    createServiceClient.mockReturnValue(createFakeSupabase().client)
+    await createRentCheckout("inv-1")
+    expect(sessionsCreate.mock.calls[0][0].line_items[0].price_data.unit_amount).toBe(50000)
+  })
+
   it("charges the DB amount (not any client input) and returns the checkout URL", async () => {
     createClient.mockResolvedValue(
       supabaseReturning({
