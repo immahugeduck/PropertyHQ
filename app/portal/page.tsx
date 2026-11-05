@@ -35,7 +35,7 @@ export default async function PortalOverviewPage() {
   const supabase = await createClient()
 
   const { data: payments } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("*")
     .eq("tenant_id", tenant.id)
     .order("due_date", { ascending: false })
@@ -43,7 +43,7 @@ export default async function PortalOverviewPage() {
 
   const all = (payments || []) as RentPayment[]
   const outstanding = all.filter((p) => p.status === "pending" || p.status === "overdue" || p.status === "partial")
-  const balance = outstanding.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+  const balance = outstanding.reduce((sum, p) => sum + Number(p.balance_due ?? p.amount ?? 0), 0)
   const nextDue = [...outstanding].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0]
 
   const { count: unreadMessages } = await supabase

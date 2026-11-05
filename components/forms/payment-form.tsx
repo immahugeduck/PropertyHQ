@@ -16,20 +16,21 @@ import {
 } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
-import type { Tenant } from "@/lib/types"
+import type { Tenant, RentPayment } from "@/lib/types"
 import { notifyPaymentRecorded } from "@/app/actions/notify-payment"
 
 interface PaymentFormProps {
+  payment?: RentPayment
   tenants: Tenant[]
   userId: string
   defaultTenantId?: string
 }
 
-export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormProps) {
+export function PaymentForm({ tenants, userId, defaultTenantId, payment }: PaymentFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedTenantId, setSelectedTenantId] = useState(defaultTenantId || "")
+  const [selectedTenantId, setSelectedTenantId] = useState(payment?.tenant_id || defaultTenantId || "")
 
   // Get selected tenant info
   const selectedTenant = tenants.find(t => t.id === selectedTenantId)
@@ -57,17 +58,19 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
       property_id: tenant.property_id,
       amount: parseFloat(formData.get("amount") as string),
       due_date: formData.get("due_date") as string,
-      paid_date: status === "paid" ? (formData.get("paid_date") as string) || new Date().toISOString().split("T")[0] : null,
+      paid_date: (status === "paid" || Number(formData.get("amount_paid")) > 0) ? (formData.get("paid_date") as string) || new Date().toISOString().split("T")[0] : null,
       status: status,
+      amount_paid: status === "paid" ? Number(formData.get("amount")) : Number(formData.get("amount_paid") || 0),
       payment_method: (formData.get("payment_method") as string) || null,
       notes: (formData.get("notes") as string) || null,
     }
 
     const supabase = createClient()
 
-    const { error: insertError } = await supabase
-      .from("rent_payments")
-      .insert(data)
+    const query = payment
+      ? supabase.from("rent_payments").update(data).eq("id", payment.id).eq("user_id", userId)
+      : supabase.from("rent_payments").insert(data)
+    const { error: insertError } = await query
 
     if (insertError) {
       setError(insertError.message)
@@ -76,7 +79,7 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
     }
 
     // Notify manager of payment received (non-critical, fires and forgets)
-    if (status === "paid" && tenant) {
+    if (!payment && status === "paid" && tenant) {
       notifyPaymentRecorded({
         userId,
         tenantName: `${tenant.first_name} ${tenant.last_name}`,
@@ -93,7 +96,7 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
     <form onSubmit={handleSubmit}>
       <Card>
         <CardHeader>
-          <CardTitle>Record Payment</CardTitle>
+          <CardTitle>{payment ? "Edit Payment" : "Record Payment"}</CardTitle>
           <CardDescription>
             Log a rent payment from a tenant
           </CardDescription>
@@ -140,10 +143,11 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
                 id="amount"
                 name="amount"
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
                 placeholder="0.00"
-                defaultValue={selectedTenant?.rent_amount || ""}
+                key={selectedTenantId}
+                defaultValue={payment?.amount ?? selectedTenant?.rent_amount ?? ""}
                 required
               />
             </div>
@@ -153,7 +157,8 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
                 id="due_date"
                 name="due_date"
                 type="date"
-                defaultValue={new Date().toISOString().split("T")[0]}
+                defaultValue={payment?.due_date ?? new Date(new Date().getFullYear(), new Date().getMonth(), selectedTenant?.rent_due_day || 1, 12).toISOString().slice(0, 10)}
+                key={selectedTenantId}
                 required
               />
             </div>
@@ -163,7 +168,7 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select name="status" defaultValue="paid">
+              <Select name="status" defaultValue={payment?.status ?? "paid"}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -171,13 +176,14 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
                   <SelectItem value="paid">Paid</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="overdue">Overdue (calculated)</SelectItem>
+
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment_method">Payment Method</Label>
-              <Select name="payment_method" defaultValue="bank_transfer">
+              <Select name="payment_method" defaultValue={payment?.payment_method ?? "bank_transfer"}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select method" />
                 </SelectTrigger>
@@ -192,6 +198,11 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="amount_paid">Amount received (for partial payments)</Label>
+            <Input id="amount_paid" name="amount_paid" type="number" min="0" step="0.01" defaultValue={payment?.amount_paid ?? 0} />
+            <p className="text-sm text-muted-foreground">Overdue status is calculated from the due date and your grace period. Due dates default to the tenant’s lease billing day.</p>
+          </div>
           {/* Paid Date */}
           <div className="space-y-2">
             <Label htmlFor="paid_date">Paid Date (if applicable)</Label>
@@ -199,7 +210,7 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
               id="paid_date"
               name="paid_date"
               type="date"
-              defaultValue={new Date().toISOString().split("T")[0]}
+              defaultValue={payment?.paid_date ?? new Date().toISOString().slice(0, 10)}
             />
           </div>
 
@@ -210,6 +221,7 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
               id="notes"
               name="notes"
               placeholder="Additional notes..."
+              defaultValue={payment?.notes ?? ""}
               rows={3}
             />
           </div>
@@ -218,7 +230,7 @@ export function PaymentForm({ tenants, userId, defaultTenantId }: PaymentFormPro
           <div className="flex gap-4 pt-4">
             <Button type="submit" disabled={loading}>
               {loading && <Spinner className="mr-2 h-4 w-4" />}
-              Record Payment
+              {payment ? "Save Changes" : "Record Payment"}
             </Button>
             <Button
               type="button"

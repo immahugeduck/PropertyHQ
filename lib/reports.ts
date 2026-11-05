@@ -14,6 +14,7 @@ export function getDateRange(preset: string, from?: string, to?: string): { from
   const m = now.getMonth()
 
   switch (preset) {
+    case "all-time": return { from: "0001-01-01", to: "9999-12-31" }
     case "custom":
       return {
         from: from || `${y}-01-01`,

@@ -43,26 +43,26 @@ export default async function TenantLedgerPage({
     : getDateRange(preset)
 
   const [{ data: tenants }, { data: selectedTenant }, { data: rawPayments }] = await Promise.all([
-    supabase.from("tenants").select("id, first_name, last_name").eq("user_id", user.id).order("last_name"),
+    supabase.from("visible_tenants").select("id, first_name, last_name").eq("user_id", user.id).order("last_name"),
     tenantId !== "all"
       ? supabase
-          .from("tenants")
+          .from("visible_tenants")
           .select("id, first_name, last_name, email, lease_start, lease_end, rent_amount, security_deposit, status, properties(name, address)")
           .eq("id", tenantId)
           .single()
       : Promise.resolve({ data: null }),
     tenantId !== "all"
       ? supabase
-          .from("rent_payments")
-          .select("id, amount, due_date, paid_date, status, payment_method, receipt_number")
+          .from("payment_balances")
+          .select("id, amount, amount_paid, balance_due, due_date, paid_date, status, payment_method, receipt_number")
           .eq("user_id", user.id)
           .eq("tenant_id", tenantId)
           .gte("due_date", from)
           .lte("due_date", to)
           .order("due_date", { ascending: true })
       : supabase
-          .from("rent_payments")
-          .select("id, amount, due_date, paid_date, status, payment_method, receipt_number, tenant_id, tenants(first_name, last_name)")
+          .from("payment_balances")
+          .select("id, amount, amount_paid, balance_due, due_date, paid_date, status, payment_method, receipt_number, tenant_id, tenants(first_name, last_name)")
           .eq("user_id", user.id)
           .gte("due_date", from)
           .lte("due_date", to)
@@ -72,15 +72,14 @@ export default async function TenantLedgerPage({
   const payments = rawPayments ?? []
 
   const totalCharged = payments.reduce((s, p) => s + Number(p.amount), 0)
-  const totalPaid = payments.filter((p) => p.status === "paid" || p.status === "partial")
-    .reduce((s, p) => s + Number(p.amount), 0)
+  const totalPaid = payments.reduce((s, p) => s + Number(p.amount_paid), 0)
   const balance = totalCharged - totalPaid
 
   // Running balance for ledger
   let running = 0
   const ledgerRows = payments.map((p) => {
     const charge = Number(p.amount)
-    const credit = p.status === "paid" || p.status === "partial" ? Number(p.amount) : 0
+    const credit = Number(p.amount_paid)
     running = running + charge - credit
     return { ...p, charge, credit, running }
   })

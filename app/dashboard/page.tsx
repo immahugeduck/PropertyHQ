@@ -1,3 +1,4 @@
+import { summarizePayments } from "@/lib/financial-summary"
 import { createClient } from "@/lib/supabase/server"
 import type { RentPayment, Tenant } from "@/lib/types"
 
@@ -22,8 +23,8 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount)
 }
 
@@ -45,16 +46,21 @@ export default async function DashboardPage() {
     paymentsResult,
     maintenanceResult,
     maintenanceStatusResult,
+    expensesResult,
+    settingsResult,
   ] = await Promise.all([
     supabase.from("properties").select("id, status, monthly_rent"),
-    supabase.from("tenants").select("id, status"),
-    supabase.from("rent_payments").select("id, amount, status, due_date"),
+    supabase.from("tenants").select("id, status, is_demo"),
+    supabase.from("payment_balances").select("id, amount, amount_paid, balance_due, status, due_date"),
     supabase.from("maintenance_requests").select("id, status, urgency, title, property_id, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("maintenance_requests").select("status"),
+    supabase.from("expenses").select("amount"),
+    supabase.from("payment_settings").select("hide_demo_data").eq("user_id",user?.id ?? "").maybeSingle(),
   ])
 
   const properties = propertiesResult.data || []
-  const tenants = tenantsResult.data || []
+  if ([propertiesResult, tenantsResult, paymentsResult, expensesResult, settingsResult].some(r => r.error)) throw new Error("Unable to load dashboard totals. Please retry.")
+  const tenants = (tenantsResult.data || []).filter(t => !settingsResult.data?.hide_demo_data || !t.is_demo)
   const payments = paymentsResult.data || []
   const recentMaintenance = maintenanceResult.data || []
   const allMaintenance = maintenanceStatusResult.data || []
@@ -67,13 +73,14 @@ export default async function DashboardPage() {
   const monthlyRevenue = properties
     .filter(p => p.status === "occupied")
     .reduce((sum, p) => sum + (p.monthly_rent || 0), 0)
-  const pendingPayments = payments.filter(p => p.status === "pending").length
-  const overduePayments = payments.filter(p => p.status === "overdue").length
+  const totals = summarizePayments(payments)
+  const overduePayments = totals.overdueCount
+  const totalExpenses = (expensesResult.data || []).reduce((sum,e) => sum + Number(e.amount),0)
   const openMaintenanceRequests = allMaintenance.filter(m => m.status === "open" || m.status === "in_progress").length
 
   // Get recent payments
   const { data: recentPayments } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("id, amount, status, due_date, tenant:tenants(first_name, last_name)")
     .order("due_date", { ascending: false })
     .limit(5)
@@ -87,7 +94,7 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground">
-          Overview of your property portfolio
+          Overview of your property portfolio · <Link className="text-primary underline" href="/dashboard/reports/data-quality">Check data consistency</Link>
         </p>
       </div>
 
@@ -106,7 +113,7 @@ export default async function DashboardPage() {
           icon={Users}
         />
         <StatsCard
-          title="Monthly Revenue"
+          title="Expected Monthly Rent"
           value={formatCurrency(monthlyRevenue)}
           description="Expected from occupied units"
           icon={DollarSign}
@@ -119,6 +126,13 @@ export default async function DashboardPage() {
         />
       </div>
 
+      <p className="text-sm text-muted-foreground">Rent totals below are all time, matching Payments. Filter reports to the same dates when comparing. Expected rent above is a forecast.</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatsCard title="Rent Collected" value={formatCurrency(totals.collected)} description="All time · recorded receipts" icon={DollarSign} />
+        <StatsCard title="Pending Rent" value={formatCurrency(totals.pending)} description={`${totals.pendingCount} unpaid payments within grace period`} icon={Clock} />
+        <StatsCard title="Overdue Rent" value={formatCurrency(totals.overdue)} description={`${totals.overdueCount} overdue payments`} icon={AlertTriangle} />
+        <StatsCard title="Expenses" value={formatCurrency(totalExpenses)} description="All time · recorded expenses" icon={DollarSign} />
+      </div>
       {/* Recent Activity */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Maintenance */}

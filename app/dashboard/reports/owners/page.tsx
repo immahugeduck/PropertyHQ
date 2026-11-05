@@ -15,7 +15,7 @@ export default async function OwnerStatementsPage({searchParams}:{searchParams:P
   const [{data:owners,error:ownersError},{data:properties,error:propertiesError},{data:payments,error:paymentsError},{data:expenses,error:expensesError}] = await Promise.all([
     supabase.from("property_owners").select("id,first_name,last_name,company_name").eq("user_id",user.id).order("last_name"),
     supabase.from("properties").select("id,name,owner_id").eq("user_id",user.id),
-    supabase.from("rent_payments").select("property_id,amount,paid_date").eq("user_id",user.id).eq("status","paid").gte("paid_date",from).lte("paid_date",to),
+    supabase.from("payment_balances").select("property_id,amount,amount_paid,paid_date").eq("user_id",user.id).gt("amount_paid",0).gte("paid_date",from).lte("paid_date",to),
     supabase.from("expenses").select("property_id,amount,date,description").eq("user_id",user.id).gte("date",from).lte("date",to)
   ])
   const error = ownersError || propertiesError || paymentsError || expensesError
@@ -25,7 +25,7 @@ export default async function OwnerStatementsPage({searchParams}:{searchParams:P
   const statements = (owners || []).filter(o => selected === "all" || o.id === selected).map(o => {
     const units = owned.filter(p => p.owner_id === o.id)
     const ids = new Set(units.map(p => p.id))
-    const collected = (payments || []).filter(p => p.property_id && ids.has(p.property_id)).reduce((sum,p) => sum + Number(p.amount || 0), 0)
+    const collected = (payments || []).filter(p => p.property_id && ids.has(p.property_id)).reduce((sum,p) => sum + Number(p.amount_paid || 0), 0)
     const costs = (expenses || []).filter(e => e.property_id && ids.has(e.property_id)).reduce((sum,e) => sum + Number(e.amount || 0), 0)
     return {...o,units,collected,costs,net:collected-costs}
   })

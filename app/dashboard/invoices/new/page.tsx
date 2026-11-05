@@ -13,7 +13,7 @@ export default async function NewInvoicePage({
   const { data: { user } } = await supabase.auth.getUser()
 
   const [tenantsResult, propertiesResult] = await Promise.all([
-    supabase.from("tenants").select("id, first_name, last_name, rent_amount, property_id, lease_end").eq("status", "active").order("first_name"),
+    supabase.from("visible_tenants").select("id, first_name, last_name, rent_amount, property_id, lease_end").eq("status", "active").order("first_name"),
     supabase.from("properties").select("id, name, address, monthly_rent").order("name"),
   ])
 

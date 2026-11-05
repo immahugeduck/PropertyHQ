@@ -1,3 +1,4 @@
+import { PaymentSettingsForm } from "@/components/settings/payment-settings-form"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -21,6 +22,8 @@ export default async function SettingsPage() {
     supabase.from("properties").select("id").limit(1000),
     supabase.from("user_profiles").select("from_name").eq("user_id", user?.id ?? "").maybeSingle(),
   ])
+  const { data: paymentSettings, error: paymentSettingsError } = await supabase.from("payment_settings").select("grace_days,timezone,hide_demo_data").eq("user_id", user?.id ?? "").maybeSingle()
+  if (paymentSettingsError) throw new Error("Unable to load payment rules")
   const propertyCount = stats?.length || 0
   const currentFromName = profile?.from_name ?? null
 
@@ -68,6 +71,7 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
+      {user && <PaymentSettingsForm userId={user.id} settings={paymentSettings} />}
       {/* Account */}
       <Card>
         <CardHeader className="pb-3">

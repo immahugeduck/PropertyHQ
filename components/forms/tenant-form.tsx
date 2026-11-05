@@ -51,7 +51,7 @@ function FormSection({
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="pl-11">
+      <div className="pl-0 sm:pl-11">
         {children}
       </div>
     </div>
@@ -87,8 +87,14 @@ export function TenantForm({ tenant, properties, userId, defaultPropertyId }: Te
     const formData = new FormData(e.currentTarget)
     const propertyId = formData.get("property_id") as string
     
+    if (!propertyId || propertyId === "none") {
+      setError("Select a property for this tenant.")
+      setLoading(false)
+      return
+    }
     const data = {
       user_id: userId,
+      is_demo: formData.get("is_demo") === "on",
       property_id: propertyId === "none" ? null : propertyId,
       first_name: formData.get("first_name") as string,
       last_name: formData.get("last_name") as string,
@@ -103,6 +109,11 @@ export function TenantForm({ tenant, properties, userId, defaultPropertyId }: Te
       updated_at: new Date().toISOString(),
     }
 
+    if (data.lease_start && data.lease_end && data.lease_end < data.lease_start) {
+      setError("Lease end must be on or after lease start.")
+      setLoading(false)
+      return
+    }
     const supabase = createClient()
 
     if (isEditing) {
@@ -262,7 +273,7 @@ export function TenantForm({ tenant, properties, userId, defaultPropertyId }: Te
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="property_id">Assign to Property</Label>
+                <Label htmlFor="property_id">Assign to Property *</Label>
                 <Select 
                   name="property_id" 
                   value={selectedPropertyId}
@@ -404,6 +415,10 @@ export function TenantForm({ tenant, properties, userId, defaultPropertyId }: Te
             </div>
           </FormSection>
 
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_demo" defaultChecked={tenant?.is_demo} />
+            Test/demo tenant (can be hidden in Settings)
+          </label>
           {/* Additional Notes */}
           <FormSection
             icon={FileText}
@@ -454,7 +469,7 @@ export function TenantForm({ tenant, properties, userId, defaultPropertyId }: Te
           )}
 
           {/* Actions */}
-          <div className="flex gap-4 pt-4 border-t">
+          <div className="flex flex-wrap gap-4 pt-4 border-t">
             <Button type="submit" disabled={loading} size="lg">
               {loading && <Spinner className="mr-2 h-4 w-4" />}
               {isEditing ? "Save Changes" : "Add Tenant"}

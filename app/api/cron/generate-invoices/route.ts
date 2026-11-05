@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
   const { data: schedules, error } = await supabase
     .from("rent_schedules")
-    .select("*, tenant:tenants(id, first_name, last_name, email, auth_user_id), property:properties(id, name)")
+    .select("*, tenant:tenants(id, first_name, last_name, email, auth_user_id, is_demo, status, lease_start, lease_end), lease:leases(id, status, starts_on, ends_on), property:properties(id, name)")
     .eq("active", true)
 
   if (error) {
@@ -50,12 +50,19 @@ export async function GET(request: NextRequest) {
   const fromNameCache = new Map<string, string>()
 
   for (const s of schedules) {
+    const today = now.toISOString().slice(0,10)
+    if (s.tenant?.is_demo || s.tenant?.status !== "active") continue
+    const lease = s.lease as { id:string; status:string; starts_on:string; ends_on:string } | null
+    if (lease && (lease.status !== "signed" || today < lease.starts_on || today > lease.ends_on)) continue
+    if (!lease && ((s.tenant?.lease_start && today < s.tenant.lease_start) || (s.tenant?.lease_end && today > s.tenant.lease_end))) continue
     // Only generate once the day_of_month has arrived this month.
     if (now.getDate() < (s.day_of_month || 1)) continue
     // Skip if already generated for this month.
     if (s.last_generated_for && s.last_generated_for >= periodKey) continue
 
     const dueDate = new Date(now.getFullYear(), now.getMonth(), s.day_of_month || 1)
+    const dueKey = dueDate.toISOString().slice(0,10)
+    if (lease && (dueKey < lease.starts_on || dueKey > lease.ends_on)) continue
     const receiptBase = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
 
     const { error: insErr } = await supabase.from("rent_payments").insert({
@@ -68,6 +75,7 @@ export async function GET(request: NextRequest) {
       is_recurring: true,
       recurring_day: s.day_of_month,
       rent_schedule_id: s.id,
+      lease_id: s.lease_id,
       receipt_number: `${receiptBase}-${s.tenant_id.slice(0, 6)}`,
     })
 

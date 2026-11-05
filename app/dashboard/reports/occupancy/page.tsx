@@ -42,7 +42,7 @@ export default async function OccupancyPage({
       .eq("user_id", user.id)
       .order("name"),
     supabase
-      .from("tenants")
+      .from("visible_tenants")
       .select("id, first_name, last_name, property_id, lease_start, lease_end, rent_amount, status")
       .eq("user_id", user.id)
       .eq("status", "active"),

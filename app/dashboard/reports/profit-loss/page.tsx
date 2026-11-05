@@ -37,10 +37,10 @@ export default async function ProfitLossPage({
   const [{ data: properties }, { data: payments }, { data: expenses }] = await Promise.all([
     supabase.from("properties").select("id, name").eq("user_id", user.id).order("name"),
     supabase
-      .from("rent_payments")
-      .select("id, amount, paid_date, property_id, tenant_id, tenants(first_name, last_name), properties(name)")
+      .from("payment_balances")
+      .select("id, amount, amount_paid, paid_date, property_id, tenant_id, tenants(first_name, last_name), properties(name)")
       .eq("user_id", user.id)
-      .eq("status", "paid")
+      .gt("amount_paid", 0)
       .gte("paid_date", from)
       .lte("paid_date", to)
       .then((r) => ({
@@ -57,7 +57,7 @@ export default async function ProfitLossPage({
       })),
   ])
 
-  const totalIncome = payments?.reduce((s, p) => s + Number(p.amount), 0) ?? 0
+  const totalIncome = payments?.reduce((s, p) => s + Number(p.amount_paid), 0) ?? 0
   const totalExpenses = expenses?.reduce((s, e) => s + Number(e.amount), 0) ?? 0
   const netIncome = totalIncome - totalExpenses
   const margin = totalIncome > 0 ? ((netIncome / totalIncome) * 100).toFixed(1) : "0.0"
@@ -75,7 +75,7 @@ export default async function ProfitLossPage({
   })
   payments?.forEach((p) => {
     if (p.property_id && byProperty[p.property_id]) {
-      byProperty[p.property_id].income += Number(p.amount)
+      byProperty[p.property_id].income += Number(p.amount_paid)
     }
   })
   expenses?.forEach((e) => {
@@ -90,7 +90,7 @@ export default async function ProfitLossPage({
     if (!p.paid_date) return
     const key = p.paid_date.slice(0, 7)
     if (!monthMap[key]) monthMap[key] = { income: 0, expenses: 0 }
-    monthMap[key].income += Number(p.amount)
+    monthMap[key].income += Number(p.amount_paid)
   })
   expenses?.forEach((e) => {
     const key = e.date.slice(0, 7)

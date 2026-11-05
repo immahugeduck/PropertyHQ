@@ -105,6 +105,7 @@ export default async function LeasesPage() {
             <p className="text-sm text-muted-foreground">
               No leases yet. {templates.length > 0 ? "Create one from a template above." : "Install a template to begin."}
             </p>
+            <div className="mt-4">{templates.length > 0 ? <Button asChild><Link href="/dashboard/leases/new">Add lease</Link></Button> : <InstallTemplatesButton />}</div>
           </div>
         ) : (
           <div className="space-y-2">

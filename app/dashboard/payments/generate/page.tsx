@@ -12,7 +12,7 @@ export default async function GenerateRentPage() {
 
   // Get active tenants with properties
   const { data: tenants } = await supabase
-    .from("tenants")
+    .from("visible_tenants")
     .select(`
       *,
       property:properties(id, name, address, monthly_rent)
@@ -28,7 +28,7 @@ export default async function GenerateRentPage() {
   const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
 
   const { data: existingPayments } = await supabase
-    .from("rent_payments")
+    .from("payment_balances")
     .select("tenant_id")
     .eq("user_id", user.id)
     .gte("due_date", firstOfMonth)
