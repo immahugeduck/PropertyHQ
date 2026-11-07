@@ -106,12 +106,17 @@ export default async function TenantDetailPage({
     .eq("tenant_id", id)
     .order("created_at", { ascending: false })
 
-  // Fetch everyone else listed as living in the unit
+  // Everyone listed as living in the unit, current and previously listed
   const { data: household } = await supabase
     .from("household_members")
     .select("*")
     .eq("tenant_id", id)
     .order("created_at")
+  const householdRows = (household as HouseholdMember[]) || []
+  const currentHousehold = householdRows.filter((m) => !m.removed_at)
+  const pastHousehold = householdRows
+    .filter((m) => m.removed_at)
+    .sort((a, b) => (b.removed_at ?? "").localeCompare(a.removed_at ?? ""))
 
   const totalPaid = (payments || [])
     .filter(p => p.status === "paid")
@@ -330,18 +335,36 @@ export default async function TenantDetailPage({
             Household
           </CardTitle>
           <CardDescription>
-            Everyone 12 and older living in the unit besides {tenant.first_name}. Tenants can update
-            this from their portal; you&apos;re notified when they do.
+            Everyone 12 and older living in the unit besides {tenant.first_name}. Management record
+            only; it is not shown on maintenance jobs. Tenants can update it from their portal, and
+            you&apos;re notified when they do. Removed people stay below as history.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <HouseholdEditor
-            members={(household as HouseholdMember[]) || []}
+            members={currentHousehold}
             addAction={addHouseholdMember.bind(null, id)}
             removeAction={removeHouseholdMember.bind(null, id)}
             showAddedBy
             emptyText="No other residents listed."
           />
+          {pastHousehold.length > 0 && (
+            <div className="border-t border-border pt-4">
+              <p className="text-sm font-medium mb-2">Previously listed</p>
+              <ul className="space-y-1.5">
+                {pastHousehold.map((m) => (
+                  <li key={m.id} className="text-sm">
+                    <span className="text-muted-foreground line-through">{m.full_name}</span>
+                    {m.relationship && <span className="text-muted-foreground"> ({m.relationship})</span>}
+                    <span className="block text-xs text-muted-foreground">
+                      Listed {formatDate(m.created_at)} by {m.added_by === "tenant" ? "tenant" : "you"} · removed{" "}
+                      {formatDate(m.removed_at)} by {m.removed_by === "tenant" ? "tenant" : "you"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -16,6 +16,7 @@ export default async function PortalProfilePage() {
     .from("household_members")
     .select("*")
     .eq("tenant_id", tenant.id)
+    .is("removed_at", null)
     .order("created_at")
 
   return (
@@ -49,8 +50,8 @@ export default async function PortalProfilePage() {
           <CardHeader>
             <CardTitle className="text-base">Household</CardTitle>
             <CardDescription>
-              List everyone 12 and older who lives here, besides you, so maintenance knows who may
-              answer the door. Your property manager is notified of changes.
+              List everyone 12 and older who lives here besides you. This is kept on file with your
+              property manager, who is notified of any changes.
             </CardDescription>
           </CardHeader>
           <CardContent>

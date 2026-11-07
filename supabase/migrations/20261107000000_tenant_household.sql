@@ -2,9 +2,12 @@
 -- Tenant contact details and household members
 --
 -- Lets tenants keep their own phone and emergency contact current from the
--- portal, and list everyone 12 and older living in the unit. Maintenance staff
--- can see who may answer the door, and the manager can spot occupants who
--- aren't on the lease.
+-- portal, and list everyone 12 and older living in the unit. The list is a
+-- management record only (it is not shown on maintenance jobs): it helps the
+-- manager spot occupants who aren't on the lease and recall who lived where.
+--
+-- Removing someone keeps the row and stamps removed_at, so the manager keeps
+-- a history of everyone who was ever listed. Tenants only see current rows.
 --
 -- Tenants have no UPDATE policy on public.tenants (they must not edit rent or
 -- lease terms), so their edits go through server actions that only touch the
@@ -29,6 +32,9 @@ create table if not exists public.household_members (
   phone text check (phone is null or length(phone) <= 40),
   -- Who added the row: the tenant from the portal or the manager.
   added_by text not null default 'tenant' check (added_by in ('tenant', 'manager')),
+  -- Set when the person is taken off the list; null while they are current.
+  removed_at timestamp with time zone,
+  removed_by text check (removed_by is null or removed_by in ('tenant', 'manager')),
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now()
 );
@@ -54,4 +60,4 @@ create policy household_members_manager_all on public.household_members
 drop policy if exists household_members_tenant_select on public.household_members;
 create policy household_members_tenant_select on public.household_members
   for select to authenticated
-  using (public.is_tenant_of(tenant_id));
+  using (removed_at is null and public.is_tenant_of(tenant_id));

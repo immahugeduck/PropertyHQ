@@ -58,6 +58,9 @@ export interface HouseholdMember {
   is_minor: boolean
   phone: string | null
   added_by: 'tenant' | 'manager'
+  /** Set when taken off the list; the row is kept as history for the manager. */
+  removed_at: string | null
+  removed_by: 'tenant' | 'manager' | null
   created_at: string
   updated_at: string
 }

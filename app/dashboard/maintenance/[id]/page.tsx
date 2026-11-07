@@ -93,15 +93,6 @@ export default async function MaintenanceDetailPage({
     notFound()
   }
 
-  // Other residents on file, so whoever goes out knows who may answer the door.
-  const { data: household } = request.tenant_id
-    ? await supabase
-        .from("household_members")
-        .select("full_name, relationship, is_minor")
-        .eq("tenant_id", request.tenant_id)
-        .order("created_at")
-    : { data: null }
-
   // Sign any attached photos so they can be displayed.
   let photoUrls: string[] = []
   if (request.photo_paths?.length) {
@@ -330,24 +321,6 @@ export default async function MaintenanceDetailPage({
                     <p className="text-sm text-muted-foreground">{request.tenant.email}</p>
                   </div>
                 </Link>
-                {household && household.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-sm text-muted-foreground mb-1">Also lives here</p>
-                    <ul className="space-y-0.5 text-sm">
-                      {household.map((m, i) => {
-                        const details = [m.relationship, m.is_minor ? "under 18" : null].filter(Boolean)
-                        return (
-                          <li key={i}>
-                            {m.full_name}
-                            {details.length > 0 && (
-                              <span className="text-muted-foreground"> ({details.join(", ")})</span>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                )}
                 <Button variant="outline" className="w-full mt-3" asChild>
                   <Link href={`/dashboard/messages/${request.tenant.id}/chat`}>
                     <MessageSquare className="mr-2 h-4 w-4" />

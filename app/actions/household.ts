@@ -121,6 +121,7 @@ export async function addMyHouseholdMember(formData: FormData): Promise<Result> 
     .from("household_members")
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenant.id)
+    .is("removed_at", null)
   if ((count ?? 0) >= MAX_HOUSEHOLD_MEMBERS) {
     return { ok: false, error: "Your household list is full. Please contact your property manager." }
   }
@@ -155,11 +156,13 @@ export async function removeMyHouseholdMember(memberId: string): Promise<Result>
   const tenant = await getCurrentTenant()
   if (!tenant) return { ok: false, error: "Not authorized." }
 
+  // Kept as history for the manager; the tenant no longer sees it.
   const { data: removed, error } = await createServiceClient()
     .from("household_members")
-    .delete()
+    .update({ removed_at: new Date().toISOString(), removed_by: "tenant" })
     .eq("id", memberId)
     .eq("tenant_id", tenant.id)
+    .is("removed_at", null)
     .select("full_name")
     .maybeSingle()
 
@@ -232,12 +235,14 @@ export async function removeHouseholdMember(tenantId: string, memberId: string):
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: "Not authenticated." }
 
+  // Kept as history ("previously listed") rather than deleted.
   const { error } = await supabase
     .from("household_members")
-    .delete()
+    .update({ removed_at: new Date().toISOString(), removed_by: "manager" })
     .eq("id", memberId)
     .eq("tenant_id", tenantId)
     .eq("user_id", user.id)
+    .is("removed_at", null)
 
   if (error) {
     console.error("[v0] removeHouseholdMember error:", error)
