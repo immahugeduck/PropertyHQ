@@ -40,7 +40,15 @@ export function OwnerForm({ owner, userId }: OwnerFormProps) {
       state: (fd.get("state") as string) || null,
       zip_code: (fd.get("zip_code") as string) || null,
       notes: (fd.get("notes") as string) || null,
+      leasing_fee_pct: Number(fd.get("leasing_fee_pct")),
+      management_fee_pct: Number(fd.get("management_fee_pct")),
       updated_at: new Date().toISOString(),
+    }
+    const pctOk = (n: number) => Number.isFinite(n) && n >= 0 && n <= 100
+    if (!pctOk(data.leasing_fee_pct) || !pctOk(data.management_fee_pct)) {
+      setError("Fees must be between 0 and 100 percent.")
+      setLoading(false)
+      return
     }
 
     const supabase = createClient()
@@ -122,6 +130,21 @@ export function OwnerForm({ owner, userId }: OwnerFormProps) {
               <Label htmlFor="zip_code">ZIP Code</Label>
               <Input id="zip_code" name="zip_code" placeholder="12345" defaultValue={owner?.zip_code || ""} />
             </div>
+          </div>
+
+          {/* Fees */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="leasing_fee_pct">Leasing fee (% of a new tenant&apos;s first month)</Label>
+              <Input id="leasing_fee_pct" name="leasing_fee_pct" type="number" min="0" max="100" step="0.01" defaultValue={owner?.leasing_fee_pct ?? 50} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="management_fee_pct">Management fee (% of rent collected)</Label>
+              <Input id="management_fee_pct" name="management_fee_pct" type="number" min="0" max="100" step="0.01" defaultValue={owner?.management_fee_pct ?? 10} required />
+            </div>
+            <p className="text-xs text-muted-foreground sm:col-span-2">
+              Used to suggest fees when you prepare a payout. You can change the amounts on any payout before recording it.
+            </p>
           </div>
 
           {/* Notes */}
