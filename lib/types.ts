@@ -40,9 +40,29 @@ export interface Tenant {
   portal_activated_at: string | null
   /** Normalized copy of `phone` (+1XXXXXXXXXX), maintained by the database. */
   phone_e164?: string | null
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
+  emergency_contact_relationship?: string | null
   created_at: string
   updated_at: string
   property?: Property | null
+}
+
+/** Someone 12 or older living in a tenant's unit. */
+export interface HouseholdMember {
+  id: string
+  user_id: string
+  tenant_id: string
+  full_name: string
+  relationship: string | null
+  is_minor: boolean
+  phone: string | null
+  added_by: 'tenant' | 'manager'
+  /** Set when taken off the list; the row is kept as history for the manager. */
+  removed_at: string | null
+  removed_by: 'tenant' | 'manager' | null
+  created_at: string
+  updated_at: string
 }
 
 export interface TenantInvite {
