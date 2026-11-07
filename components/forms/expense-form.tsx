@@ -100,6 +100,7 @@ export function ExpenseForm({ expense, properties, userId, defaultPropertyId }: 
       date: formData.get("date") as string,
       vendor: (formData.get("vendor") as string) || null,
       notes: (formData.get("notes") as string) || null,
+      paid_by: formData.get("paid_by") === "owner" ? "owner" : "manager",
       updated_at: new Date().toISOString(),
     }
 
@@ -272,6 +273,19 @@ export function ExpenseForm({ expense, properties, userId, defaultPropertyId }: 
                 />
                 <FieldHint>Who you paid for this expense</FieldHint>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paid_by">Who paid?</Label>
+              <Select name="paid_by" defaultValue={expense?.paid_by || "manager"}>
+                <SelectTrigger id="paid_by">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manager">I paid it — deduct from the owner&apos;s payout</SelectItem>
+                  <SelectItem value="owner">Owner paid the vendor directly — record only</SelectItem>
+                </SelectContent>
+              </Select>
+              <FieldHint>Owner-paid expenses show on their statement but aren&apos;t deducted again</FieldHint>
             </div>
           </FormSection>
 

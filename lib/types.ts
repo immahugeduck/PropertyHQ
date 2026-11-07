@@ -106,6 +106,10 @@ export interface PropertyOwner {
   state: string | null
   zip_code: string | null
   notes: string | null
+  /** % of a new tenant's first month's rent (default 50). */
+  leasing_fee_pct?: number
+  /** % of rent collected in later months (default 10). */
+  management_fee_pct?: number
   created_at: string
   updated_at: string
 }
@@ -231,6 +235,8 @@ export interface Expense {
   vendor: string | null
   receipt_url: string | null
   notes: string | null
+  /** 'manager' = paid by you and deducted from the owner; 'owner' = owner paid the vendor directly. */
+  paid_by?: 'manager' | 'owner'
   created_at: string
   updated_at: string
   property?: Property
