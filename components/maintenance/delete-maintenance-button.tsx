@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 
 interface DeleteMaintenanceButtonProps {
   requestId: string
@@ -38,6 +39,7 @@ export function DeleteMaintenanceButton({ requestId, requestTitle }: DeleteMaint
 
     if (error) {
       console.error("Error deleting request:", error)
+      toast.error(`Couldn't delete this request: ${error.message}`)
       setLoading(false)
       return
     }
