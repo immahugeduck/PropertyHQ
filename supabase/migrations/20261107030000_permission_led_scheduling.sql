@@ -62,6 +62,7 @@ create function public.coordinator_portal_calendar_guard() returns trigger
 language plpgsql security definer set search_path='' as $$
 declare s public.triage_settings;start_time timestamptz;end_time timestamptz;
 begin
+ if auth.uid() is not null and auth.uid() is distinct from new.user_id then return new;end if;
  if new.status in ('completed','cancelled') or (new.scheduled_at is null and new.scheduled_date is null) then return new;end if;
  if tg_op='UPDATE' and new.scheduled_at is not distinct from old.scheduled_at and new.scheduled_date is not distinct from old.scheduled_date and not(old.status in ('completed','cancelled') and new.status not in ('completed','cancelled')) then return new;end if;
  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text,0));
