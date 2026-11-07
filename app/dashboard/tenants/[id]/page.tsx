@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
-import type { RentPayment, FileRecord } from "@/lib/types"
+import type { RentPayment, FileRecord, HouseholdMember } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,12 +16,16 @@ import {
   ArrowLeft,
   MessageSquare,
   CreditCard,
+  Users,
+  ShieldAlert,
 } from "lucide-react"
 import { DeleteTenantButton } from "@/components/tenants/delete-tenant-button"
 import { PortalAccessCard } from "@/components/tenants/portal-access-card"
 import { RentScheduleCard } from "@/components/tenants/rent-schedule-card"
 import { EntityFilesSection } from "@/components/files/entity-files-section"
 import { LeaseDocumentsCard } from "@/components/tenants/lease-documents-card"
+import { HouseholdEditor } from "@/components/household/household-editor"
+import { addHouseholdMember, removeHouseholdMember } from "@/app/actions/household"
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -101,6 +105,13 @@ export default async function TenantDetailPage({
     .select("*, folder:file_folders(id, name)")
     .eq("tenant_id", id)
     .order("created_at", { ascending: false })
+
+  // Fetch everyone else listed as living in the unit
+  const { data: household } = await supabase
+    .from("household_members")
+    .select("*")
+    .eq("tenant_id", id)
+    .order("created_at")
 
   const totalPaid = (payments || [])
     .filter(p => p.status === "paid")
@@ -226,6 +237,28 @@ export default async function TenantDetailPage({
                 </div>
               </div>
             )}
+            {(tenant.emergency_contact_name || tenant.emergency_contact_phone) && (
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Emergency Contact
+                    {tenant.emergency_contact_relationship ? ` (${tenant.emergency_contact_relationship})` : ""}
+                  </p>
+                  <p className="font-medium">
+                    {tenant.emergency_contact_name}
+                    {tenant.emergency_contact_phone && (
+                      <>
+                        {tenant.emergency_contact_name ? " · " : ""}
+                        <a href={`tel:${tenant.emergency_contact_phone}`} className="hover:underline">
+                          {tenant.emergency_contact_phone}
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="pt-4 border-t border-border">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -288,6 +321,29 @@ export default async function TenantDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Household */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Household
+          </CardTitle>
+          <CardDescription>
+            Everyone 12 and older living in the unit besides {tenant.first_name}. Tenants can update
+            this from their portal; you&apos;re notified when they do.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <HouseholdEditor
+            members={(household as HouseholdMember[]) || []}
+            addAction={addHouseholdMember.bind(null, id)}
+            removeAction={removeHouseholdMember.bind(null, id)}
+            showAddedBy
+            emptyText="No other residents listed."
+          />
+        </CardContent>
+      </Card>
 
       {/* Portal Access & Recurring Rent */}
       <div className="grid gap-6 lg:grid-cols-2">

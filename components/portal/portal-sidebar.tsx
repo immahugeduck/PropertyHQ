@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { LayoutDashboard, CreditCard, MessageSquare, Wrench, Bell, FileSignature, Menu, X } from "lucide-react"
+import { LayoutDashboard, CreditCard, MessageSquare, Wrench, Bell, FileSignature, UserRound, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand-logo"
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/portal/messages", label: "Messages", icon: MessageSquare },
   { href: "/portal/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/portal/notifications", label: "Notifications", icon: Bell },
+  { href: "/portal/profile", label: "My Info", icon: UserRound },
 ]
 
 export function PortalSidebar() {

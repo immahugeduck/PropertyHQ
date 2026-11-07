@@ -9,6 +9,7 @@ type NotificationType =
   | "lease_expiring"
   | "tenant_added"
   | "invoice_issued"
+  | "tenant_updated"
   | "general"
 
 export type { NotificationType }
