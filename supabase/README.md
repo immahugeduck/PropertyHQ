@@ -37,6 +37,22 @@ base tables were created.
 
 Auth users, rows and uploaded files are data and are not part of this backup.
 
+## Tenant and maintenance handoff upgrade
+
+`20261108181500_tenant_maintenance_handoff.sql` keeps the coordinator RPC contract
+and formats maintenance work orders from the saved ticket. The manager receives
+the original context; maintenance receives the repair, access restrictions,
+availability and the next scheduling step. Unchanged permission answers and
+unresolved entry clarifications no longer restart maintenance scheduling.
+
+Apply this additive migration after the existing permission-led scheduling
+migration and before releasing the matching PropertyHQ-Bot workflow upgrade.
+It does not modify live tickets or replay existing queued messages. The bot's
+raw-text/database examples run with this migration against PGlite, using only
+fixture contacts. The three-upgrade plan and example results live in the bot's
+`docs/superpowers/plans/2026-11-08-tenant-maintenance-upgrades.md` and
+`docs/TENANT_MAINTENANCE_RESULTS.md`.
+
 ## Known issues found while exporting (not changed by this backup)
 
 - **Edge functions are unused by the app.** Nothing in `app/`, `lib/` or
