@@ -151,7 +151,7 @@ begin
    -- Keep uncertain clarifications and repeated unchanged entry answers in the
    -- manager's context; they must not restart maintenance scheduling.
    if typ='add_details' and not coalesce(staff,false) then
-    notify_maintenance:=not ((f->>'requestScheduling'='false' and fact_patch='{}'::jsonb)
+    notify_maintenance:=not ((f->>'notifyMaintenance'='false' and fact_patch='{}'::jsonb)
      or (fact_patch ? 'entryPermission' and fact_patch-'entryPermission'='{}'::jsonb and not facts_changed));
     notify_maintenance:=coalesce(notify_maintenance,true);
    end if;
@@ -238,8 +238,8 @@ begin
   if job.id is not null and typ in ('new_request','add_details') and not coalesce(staff,false) then perform public.coordinator_refresh_suggestions(p_user,job.id,fact_patch ? 'entryPermission' and facts_changed);end if;
   if job.id is not null then
    maintenance_update:=case
-    when typ='add_details' and (fact_patch='{}'::jsonb or fact_patch->'entryPermission'='false'::jsonb) then coalesce(f->>'description',p_message)
-    when typ='request_alternatives' and fact_patch='{}'::jsonb then coalesce(f->>'description',p_message)
+    when typ='add_details' and fact_patch<>'{"entryPermission":true}'::jsonb then coalesce(f->>'description',p_message)
+    when typ='request_alternatives' then coalesce(f->>'description',p_message)
     else null end;
    update public.coordinator_outbox set
     schedule_proposal=case when to_number=public.normalize_us_phone(s.maintenance_phone) then public.coordinator_suggestion_snapshot(p_user,job.id) else null end,
