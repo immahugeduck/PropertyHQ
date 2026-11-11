@@ -53,6 +53,29 @@ fixture contacts. The three-upgrade plan and example results live in the bot's
 `docs/superpowers/plans/2026-11-08-tenant-maintenance-upgrades.md` and
 `docs/TENANT_MAINTENANCE_RESULTS.md`.
 
+## Manager review and exact replies
+
+`20261111003933_manager_review_replies.sql` adds saved manager-review status and
+the last exact tenant-facing manager reply to existing requests. Pending reviews
+go to the manager; maintenance receives a work order only after a separate
+`APPROVE INSPECTION #1001` or `APPROVE WORK #1001` command. Inspection completion
+returns findings to manager review and clears a used inspection entry grant.
+
+Managers send outward wording with `SEND #1001: your exact message`. `SEND:`
+without a number works only when exactly one request is open. Bodies are preserved
+verbatim, including line breaks, and limited to 1,600 characters; overlong bodies
+are rejected rather than shortened. Conditional wording never authorizes work.
+Other review comments remain internal, and tenant acknowledgements create no new
+staff alert. Explicitly marked portal review requests use the same routing;
+emergency form reports bypass the optional-review marker.
+
+Apply this additive migration after `20261108181500_tenant_maintenance_handoff.sql`
+and before releasing the matching PropertyHQ-Bot update. No existing ticket is
+reclassified and no queued message is replayed. Unmarked portal descriptions
+retain existing intake behavior. The bot's `docs/MANAGER_REVIEW_RESULTS.md` records
+the fictional database examples and verification limits. This change has been
+verified locally; it has not been applied to production.
+
 ## Known issues found while exporting (not changed by this backup)
 
 - **Edge functions are unused by the app.** Nothing in `app/`, `lib/` or
