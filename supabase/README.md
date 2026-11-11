@@ -77,7 +77,26 @@ and before releasing the matching PropertyHQ-Bot update. No existing ticket is
 reclassified and no queued message is replayed. Unmarked portal descriptions
 retain existing intake behavior. The bot's `docs/MANAGER_REVIEW_RESULTS.md` records
 the fictional database examples and verification limits. This change has been
-verified locally; it has not been applied to production.
+verified locally; the subsequent context-followup release records the rollout.
+
+## Compact maintenance requests and durable staff focus
+
+`20261111214912_context_followup.sql` follows the manager-review migration. It
+preserves cleaned `repairSummary` and `accessNotes` in request facts, generates
+the compact repair/access/calendar work order and keeps three tentative calendar
+suggestions even while permission is TBD. Bookings still require the applicable
+permission, staff approval and current conflict checks. Numeric selection must
+match the displayed proposal version, full proposal and chosen member.
+
+The context RPC includes the latest delivered open request for each staff phone,
+scoped to its account and outside the recent-message limit. Scheduling replies
+without mutations can carry `replyJobId`; the commit RPC validates its scope and
+records it on SMS history so the next answer stays with the same review. Existing
+function ACLs, account locks, SID deduplication and manager-review gates remain.
+
+Deploy the matching bot after the additive migrations. No historical messages
+are replayed or appointments automatically booked by these migrations. Bot
+`docs/CONTEXT_FOLLOWUP_RESULTS.md` contains the example and measured tests.
 
 ## Known issues found while exporting (not changed by this backup)
 
