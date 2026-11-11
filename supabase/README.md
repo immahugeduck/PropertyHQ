@@ -60,6 +60,9 @@ the last exact tenant-facing manager reply to existing requests. Pending reviews
 go to the manager; maintenance receives a work order only after a separate
 `APPROVE INSPECTION #1001` or `APPROVE WORK #1001` command. Inspection completion
 returns findings to manager review and clears a used inspection entry grant.
+This applies to completion through either the bot or the existing portal form.
+Pending review blocks portal work-start/completion status changes while retaining
+intentional cancellation. Tenant entry changes remain saved during review.
 
 Managers send outward wording with `SEND #1001: your exact message`. `SEND:`
 without a number works only when exactly one request is open. Bodies are preserved

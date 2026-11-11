@@ -3,7 +3,7 @@ begin;
 alter table public.maintenance_requests
  add column coordinator_review_status text check(coordinator_review_status in ('awaiting_manager_response','awaiting_tenant_response','inspection_authorized','work_authorized')),
  add column coordinator_manager_reply text,
- add constraint manager_review_before_scheduling check(coordinator_review_status is null or coordinator_review_status in ('inspection_authorized','work_authorized') or (scheduled_at is null and scheduled_date is null));
+ add constraint manager_review_before_scheduling check(coordinator_review_status is null or coordinator_review_status in ('inspection_authorized','work_authorized') or (scheduled_at is null and scheduled_date is null and status not in ('in_progress','completed')));
 
 create function public.coordinator_review_prompt(p_user uuid,p_request uuid,p_update text default null) returns text
 language sql stable security definer set search_path='' as $$
@@ -27,6 +27,40 @@ language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function public.coordinator_review_prompt(uuid,uuid,text),public.coordinator_review_tenant_phone(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.coordinator_review_prompt(uuid,uuid,text),public.coordinator_review_tenant_phone(uuid,uuid) to service_role;
+
+-- The portal updates request status directly. Apply inspection completion there
+-- as well as in the coordinator RPC, before ordinary completion tracking runs.
+create or replace function public.coordinator_portal_calendar_guard() returns trigger
+language plpgsql security definer set search_path='' as $$
+declare s public.triage_settings;start_time timestamptz;end_time timestamptz;tenant_phone text;event_id text;
+begin
+ if auth.uid() is not null and auth.uid() is distinct from new.user_id then return new;end if;
+ if tg_op='UPDATE' and old.coordinator_review_status='inspection_authorized' and new.status='completed' then
+  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text,0));
+  select * into strict s from public.triage_settings where user_id=new.user_id;
+  new.status:='open';new.coordinator_review_status:='awaiting_manager_response';
+  new.scheduled_at:=null;new.scheduled_date:=null;new.completed_at:=null;new.completed_date:=null;new.completion_notified_at:=null;
+  if new.coordinator_details->'entryPermission'='true'::jsonb then new.coordinator_details:=new.coordinator_details-'entryPermission';end if;
+  update public.coordinator_appointments set stage='completed',options='[]'::jsonb,selected=null,proposal_version=proposal_version+1 where request_id=new.id and user_id=new.user_id;
+  event_id:='portal-inspection:'||new.id::text||':'||gen_random_uuid()::text;
+  insert into public.coordinator_outbox(user_id,event_sid,action_key,to_number,from_number,body,request_id)
+  values(new.user_id,event_id,'inspection_manager',public.normalize_us_phone(s.manager_phone),s.twilio_number,public.coordinator_review_prompt(new.user_id,new.id,coalesce(nullif(new.notes,''),'Inspection completed through Property HQ.')),new.id);
+  tenant_phone:=public.coordinator_review_tenant_phone(new.user_id,new.id);
+  if tenant_phone is not null then
+   insert into public.coordinator_outbox(user_id,event_sid,action_key,to_number,from_number,body,tenant_id,request_id)
+   values(new.user_id,event_id,'inspection_tenant',tenant_phone,s.twilio_number,'Maintenance has completed the inspection. Your property manager will review the findings before any work is arranged.',new.tenant_id,new.id);
+  end if;
+  return new;
+ end if;
+ if new.status in ('completed','cancelled') or (new.scheduled_at is null and new.scheduled_date is null) then return new;end if;
+ if tg_op='UPDATE' and new.scheduled_at is not distinct from old.scheduled_at and new.scheduled_date is not distinct from old.scheduled_date and not(old.status in ('completed','cancelled') and new.status not in ('completed','cancelled')) then return new;end if;
+ perform pg_advisory_xact_lock(hashtextextended(new.user_id::text,0));
+ select * into s from public.triage_settings where user_id=new.user_id;if not found then return new;end if;
+ start_time:=coalesce(new.scheduled_at,new.scheduled_date::timestamp at time zone s.timezone);
+ end_time:=case when new.scheduled_at is not null then new.scheduled_at+interval '1 hour' else (new.scheduled_date+1)::timestamp at time zone s.timezone end;
+ if not public.coordinator_slot_free(new.user_id,start_time,end_time,new.id) then raise exception 'appointment unavailable: maintenance calendar conflict';end if;
+ return new;
+end $$;
 
 
 create or replace function public.coordinator_context(p_to text,p_from text,p_job bigint default null) returns jsonb
@@ -243,6 +277,7 @@ begin
     values(p_user,p_sid,action_index::text,tenant_phone,s.twilio_number,tenant_text,job.tenant_id,job.id);
    elsif typ='review_followup' then
     if coalesce(staff,false) or tid is distinct from job.tenant_id or job.coordinator_review_status not in ('awaiting_manager_response','awaiting_tenant_response') or job.coordinator_review_status is null then raise exception 'tenant follow-up requires pending manager review';end if;
+    update public.maintenance_requests set coordinator_details=coordinator_details||fact_patch where id=job.id and user_id=p_user;
     if f->'notifyManager' is distinct from 'false'::jsonb then
      update public.maintenance_requests set coordinator_review_status='awaiting_manager_response' where id=job.id and user_id=p_user;
      insert into public.coordinator_outbox(user_id,event_sid,action_key,to_number,from_number,body,request_id)
