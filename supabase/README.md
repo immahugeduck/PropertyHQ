@@ -98,6 +98,15 @@ Deploy the matching bot after the additive migrations. No historical messages
 are replayed or appointments automatically booked by these migrations. Bot
 `docs/CONTEXT_FOLLOWUP_RESULTS.md` contains the example and measured tests.
 
+Production application on November 12, 2026 was explicitly approved and completed
+through the Supabase migration tool. Its application-time records are
+`20261112230350_tenant_maintenance_handoff`,
+`20261112230408_manager_review_replies` and
+`20261112230413_context_followup`; they map to the three reviewed source files
+above. Treat them as already applied despite the source filename dates. Live
+context, approval guards, access-note merging and function privileges were checked
+afterward. Both matching repositories publish fresh builds from `main`.
+
 ## Known issues found while exporting (not changed by this backup)
 
 - **Edge functions are unused by the app.** Nothing in `app/`, `lib/` or
