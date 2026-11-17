@@ -1,7 +1,11 @@
 import {describe,it,expect} from "vitest"
-import {waitingSummary} from "./maintenance-workflow"
+import {waitingSummary,clearSavedNote} from "./maintenance-workflow"
 
 describe("request next action",()=>{
+ it("preserves a newer draft while clearing the exact note that was saved",()=>{
+  expect(clearSavedNote("The supplier has replied.","Waiting for the supplier.")).toBe("The supplier has replied.")
+  expect(clearSavedNote("Waiting for the supplier.","Waiting for the supplier.")).toBe("")
+ })
  it("distinguishes a stalled maintenance reply from an optional tenant reply and a future visit",()=>{
   const now=new Date("2026-11-18T15:00:00Z")
   expect(waitingSummary({status:"open",coordinator_waiting_on:"maintenance",coordinator_waiting_reason:"schedule_visit",coordinator_waiting_since:"2026-11-16T15:00:00Z"},{now}).stalled).toBe(true)

@@ -340,6 +340,7 @@ export function MaintenanceForm({
               name="notes"
               placeholder="Additional notes for reference..."
               defaultValue=""
+              maxLength={8000}
               rows={3}
             />
           </div>}

@@ -5,6 +5,7 @@ export interface RequestWaiting {
  coordinator_waiting_since?: string|null
  coordinator_reminders_paused?: boolean
 }
+export function clearSavedNote(current:string,submitted:string) {return current===submitted?"":current}
 const actions: Record<string,string>={
  entry_permission:"Confirm permission to enter while nobody is home.",
  schedule_visit:"Confirm a visit time or offer current openings.",
@@ -14,6 +15,7 @@ const actions: Record<string,string>={
  tenant_response:"Reply to the manager’s message.",
  access_plan:"Arrange an attended visit with the tenant.",
  contact_verification:"Confirm the tenant’s contact details before messaging.",
+ staff_setup:"Confirm maintenance and management contact details before messaging.",
  emergency_followup:"Follow up on the emergency report.",
  visit_update:"Send a progress update or confirm completion.",
  scheduled:"The visit is scheduled. Maintenance will receive its visit check-in.",

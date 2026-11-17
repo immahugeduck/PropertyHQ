@@ -47,11 +47,12 @@ begin
  if not found then return;end if;
  select * into a from public.coordinator_appointments where user_id=p_user and request_id=p_request;
  if m.status in ('completed','cancelled') then reason:='closed';
+ elsif not exists(select 1 from public.triage_settings s where s.user_id=p_user and public.normalize_us_phone(s.maintenance_phone) is not null and public.normalize_us_phone(s.manager_phone) is not null) then actor:='manager';reason:='staff_setup';
  elsif m.coordinator_review_status='awaiting_manager_response' then actor:='manager';reason:='manager_review';
  elsif m.coordinator_review_status='awaiting_tenant_response' then actor:='tenant';reason:=case when m.coordinator_tenant_reply_required then 'tenant_response' else 'tenant_optional' end;
  elsif a.stage='awaiting_selection' and exists(select 1 from jsonb_array_elements(a.options) o where (o->>'start')::timestamptz>p_now) then actor:='tenant';reason:='visit_options';
  elsif m.tenant_id is null or public.coordinator_review_tenant_phone(p_user,p_request) is null then actor:='manager';reason:='contact_verification';
- elsif m.urgency='emergency' and (m.scheduled_at is null or a.stage is distinct from 'confirmed') then actor:='manager';reason:='emergency_followup';
+ elsif m.urgency='emergency' and m.scheduled_at is null then actor:='manager';reason:='emergency_followup';
  elsif m.coordinator_details->'entryPermission'='false'::jsonb and not m.coordinator_attended_access then actor:='manager';reason:='access_plan';
  elsif m.coordinator_details->'entryPermission' is distinct from 'true'::jsonb and not m.coordinator_attended_access then actor:='tenant';reason:='entry_permission';
  elsif a.stage in ('rescheduling','awaiting_selection') then actor:='maintenance';reason:='schedule_visit';
@@ -76,7 +77,7 @@ begin
  if tg_op='UPDATE' and new.coordinator_manager_reply is distinct from old.coordinator_manager_reply then
   new.coordinator_tenant_reply_required:=false;
  end if;
- if tg_op='INSERT' then new.coordinator_legacy_notes:=new.notes;end if;
+ if tg_op='INSERT' then new.coordinator_legacy_notes:=case when auth.uid()=new.user_id and nullif(btrim(new.notes),'') is not null then null else new.notes end;end if;
  return new;
 end $$;
 create trigger coordinator_waiting_before_request before insert or update of coordinator_manager_reply on public.maintenance_requests for each row execute function public.coordinator_waiting_request_trigger();
@@ -84,6 +85,10 @@ create trigger coordinator_waiting_before_request before insert or update of coo
 create function public.coordinator_waiting_after_request() returns trigger
 language plpgsql security definer set search_path='' as $$
 begin
+ if tg_op='INSERT' and auth.uid()=new.user_id and nullif(btrim(new.notes),'') is not null then
+  insert into public.maintenance_request_activity(user_id,request_id,author_role,source,kind,body)
+  values(new.user_id,new.id,'manager','dashboard','internal_note',new.notes);
+ end if;
  if tg_op='UPDATE' and auth.uid()=new.user_id and (old.status is distinct from new.status or old.scheduled_at is distinct from new.scheduled_at or old.scheduled_date is distinct from new.scheduled_date) then
   insert into public.maintenance_request_activity(user_id,request_id,author_role,source,kind,body)
   values(new.user_id,new.id,'manager','dashboard','request_update',case when old.status is distinct from new.status then 'Status changed to '||replace(new.status,'_',' ')||'. ' else '' end||case when old.scheduled_at is distinct from new.scheduled_at or old.scheduled_date is distinct from new.scheduled_date then 'Visit schedule updated.' else '' end);
@@ -516,6 +521,7 @@ begin
    when 'manager_review' then 'Reminder: '||public.coordinator_review_prompt(p_user,m.id)
    when 'access_plan' then 'Reminder #'||m.job_number||': an attended access plan is needed for '||label_text||'. Please coordinate visit options with the tenant. Unattended entry is not granted.'
    when 'contact_verification' then 'Reminder #'||m.job_number||': confirm the tenant contact in Property HQ before further messaging.'
+   when 'staff_setup' then 'Reminder #'||m.job_number||': confirm maintenance and management contact details before messaging continues.'
    when 'emergency_followup' then 'Follow-up #'||m.job_number||': please review the emergency request and record the next action in Property HQ.'
    when 'visit_update' then 'Visit follow-up #'||m.job_number||' for '||label_text||': please send a progress update, or reply DONE #'||m.job_number||' when finished.'
    else 'Scheduling follow-up #'||m.job_number||' for '||label_text||': please send a confirmed visit time or current openings.' end;

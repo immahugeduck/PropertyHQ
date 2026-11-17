@@ -8,7 +8,7 @@ import {Textarea} from "@/components/ui/textarea"
 import {Card,CardContent,CardHeader,CardTitle} from "@/components/ui/card"
 import {WaitingIndicator} from "./waiting-indicator"
 import type {MaintenanceRequest} from "@/lib/types"
-import {waitingSummary} from "@/lib/maintenance-workflow"
+import {waitingSummary,clearSavedNote} from "@/lib/maintenance-workflow"
 
 export interface RequestActivityEntry {id:string;author_role:string;source:string;kind:string;body:string;created_at:string}
 const authors:Record<string,string>={manager:"Management",maintenance:"Maintenance",tenant:"Tenant",bot:"Property HQ"}
@@ -39,7 +39,7 @@ export function RequestActivity({request,entries,timezone="America/Indiana/India
   <Card><CardHeader><CardTitle>Notes and activity</CardTitle></CardHeader><CardContent className="space-y-6">
    <form className="space-y-3" onSubmit={async e=>{
     e.preventDefault();if(!note.trim())return;setBusy(true);setMessage("")
-    try {const {error}=await createClient().rpc("maintenance_add_note",{p_request:request.id,p_body:note});if(error)throw error;setNote("");setMessage("Internal note saved.");router.refresh()}
+    try {const {error}=await createClient().rpc("maintenance_add_note",{p_request:request.id,p_body:note});if(error)throw error;setNote(current=>clearSavedNote(current,note));setMessage("Internal note saved.");router.refresh()}
     catch {setMessage("Could not save the note. Your text is still here; please try again.")}
     finally {setBusy(false)}
    }}>
