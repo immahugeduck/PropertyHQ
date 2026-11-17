@@ -158,8 +158,15 @@ export interface MaintenanceRequest {
   notes: string | null
   photo_paths: string[] | null
   reported_by_name: string | null
-  /** Short number staff can reference by text, e.g. "1042 done". */
+  /** Short number staff can reference by text, e.g. "DONE #1042". */
   job_number?: number
+  coordinator_waiting_on?: 'tenant' | 'maintenance' | 'manager' | null
+  coordinator_waiting_reason?: string | null
+  coordinator_waiting_since?: string | null
+  coordinator_reminders_paused?: boolean
+  coordinator_tenant_reply_required?: boolean
+  coordinator_review_status?: string | null
+  coordinator_legacy_notes?: string | null
   source?: 'app' | 'sms' | 'voice'
   scheduled_at?: string | null
   /** Set by the database when status becomes 'completed'. */

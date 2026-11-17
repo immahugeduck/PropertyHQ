@@ -13,6 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { BusinessProfileForm } from "@/components/settings/business-profile-form"
+import { MaintenanceFollowupSettings } from "@/components/settings/maintenance-followup-settings"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -22,8 +23,12 @@ export default async function SettingsPage() {
     supabase.from("properties").select("id").limit(1000),
     supabase.from("user_profiles").select("from_name").eq("user_id", user?.id ?? "").maybeSingle(),
   ])
-  const { data: paymentSettings, error: paymentSettingsError } = await supabase.from("payment_settings").select("grace_days,timezone,hide_demo_data").eq("user_id", user?.id ?? "").maybeSingle()
+  const [{ data: paymentSettings, error: paymentSettingsError },{data:followupSettings,error:followupError}] = await Promise.all([
+    supabase.from("payment_settings").select("grace_days,timezone,hide_demo_data").eq("user_id", user?.id ?? "").maybeSingle(),
+    supabase.from("maintenance_followup_settings").select("enabled,reminder_hours").eq("user_id",user?.id??"").maybeSingle(),
+  ])
   if (paymentSettingsError) throw new Error("Unable to load payment rules")
+  if(followupError)throw new Error("Unable to load maintenance follow-up settings")
   const propertyCount = stats?.length || 0
   const currentFromName = profile?.from_name ?? null
 
@@ -72,6 +77,7 @@ export default async function SettingsPage() {
       </Card>
 
       {user && <PaymentSettingsForm userId={user.id} settings={paymentSettings} />}
+      {user && <MaintenanceFollowupSettings settings={followupSettings}/>}
       {/* Account */}
       <Card>
         <CardHeader className="pb-3">

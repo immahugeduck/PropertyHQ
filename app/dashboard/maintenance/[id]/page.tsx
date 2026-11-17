@@ -21,6 +21,7 @@ import {
 import { DeleteMaintenanceButton } from "@/components/maintenance/delete-maintenance-button"
 import { UpdateStatusButton } from "@/components/maintenance/update-status-button"
 import { VendorAssignmentCard } from "@/components/vendors/vendor-assignment-card"
+import { RequestActivity } from "@/components/maintenance/request-activity"
 
 function formatDate(dateString: string | null) {
   if (!dateString) return "Not set"
@@ -80,18 +81,22 @@ export default async function MaintenanceDetailPage({
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: request, error }, { data: vendors }] = await Promise.all([
+  const [{ data: request, error }, { data: vendors },{data:activity,error:activityError},{data:followupSettings},{data:triageSettings}] = await Promise.all([
     supabase
       .from("maintenance_requests")
       .select("*, property:properties(*), tenant:tenants(*), vendor:vendors(*)")
       .eq("id", id)
       .single(),
     supabase.from("vendors").select("*").eq("user_id", user?.id ?? "").order("name"),
+    supabase.from("maintenance_request_activity").select("id,author_role,source,kind,body,created_at").eq("request_id",id).eq("user_id",user?.id??"").order("created_at",{ascending:false}).order("id",{ascending:false}).limit(100),
+    supabase.from("maintenance_followup_settings").select("enabled,reminder_hours").eq("user_id",user?.id??"").maybeSingle(),
+    supabase.from("triage_settings").select("timezone").eq("user_id",user?.id??"").maybeSingle(),
   ])
 
   if (error || !request) {
     notFound()
   }
+  if(activityError)throw new Error("Unable to load request history")
 
   // Sign any attached photos so they can be displayed.
   let photoUrls: string[] = []
@@ -194,12 +199,6 @@ export default async function MaintenanceDetailPage({
                 </Badge>
               </div>
             </div>
-            {request.notes && (
-              <div className="pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground mb-1">Internal Notes</p>
-                <p className="text-sm whitespace-pre-wrap">{request.notes}</p>
-              </div>
-            )}
             {photoUrls.length > 0 && (
               <div className="pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground mb-2">Photos</p>
@@ -228,6 +227,7 @@ export default async function MaintenanceDetailPage({
 
         {/* Timeline and Costs */}
         <div className="space-y-6">
+          <RequestActivity request={request} entries={activity??[]} timezone={triageSettings?.timezone} hours={followupSettings?.reminder_hours??24} enabled={followupSettings?.enabled??true}/>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

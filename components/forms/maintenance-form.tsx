@@ -110,7 +110,7 @@ export function MaintenanceForm({
       actual_cost: parseFloat(formData.get("actual_cost") as string) || null,
       scheduled_date: (formData.get("scheduled_date") as string) || null,
       completed_date: (formData.get("completed_date") as string) || null,
-      notes: (formData.get("notes") as string) || null,
+      ...(!isEditing?{notes:(formData.get("notes") as string)||null}:{}),
       photo_paths: [...existingPhotos, ...uploadedPaths],
       updated_at: new Date().toISOString(),
     }
@@ -333,16 +333,17 @@ export function MaintenanceForm({
           </div>
 
           {/* Notes */}
-          <div className="space-y-2">
+          {!isEditing&&<div className="space-y-2">
             <Label htmlFor="notes">Internal Notes</Label>
             <Textarea
               id="notes"
               name="notes"
               placeholder="Additional notes for reference..."
-              defaultValue={request?.notes || ""}
+              defaultValue=""
               rows={3}
             />
-          </div>
+          </div>}
+          {isEditing&&<p className="text-sm text-muted-foreground">Add internal notes from the request’s Notes and activity section. Existing history is preserved when you save these details.</p>}
 
           {/* Photos */}
           <div className="space-y-2">

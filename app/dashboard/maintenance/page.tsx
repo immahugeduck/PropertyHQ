@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { WaitingIndicator } from "@/components/maintenance/waiting-indicator"
 import { Plus, Wrench, Building2, AlertTriangle, CheckCircle, Clock, Play } from "lucide-react"
 
 function formatDate(dateString: string) {
@@ -56,10 +57,10 @@ const categoryLabels = {
 export default async function MaintenancePage() {
   const supabase = await createClient()
 
-  const { data: requests, error } = await supabase
+  const [{ data: requests, error },{data:followupSettings}] = await Promise.all([supabase
     .from("maintenance_requests")
     .select("*, property:properties(id, name, address), tenant:tenants(id, first_name, last_name)")
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false }),supabase.from("maintenance_followup_settings").select("enabled,reminder_hours").maybeSingle()])
 
   if (error) {
     console.error("Error fetching maintenance requests:", error)
@@ -175,6 +176,7 @@ export default async function MaintenancePage() {
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {request.description}
                           </p>
+                          <WaitingIndicator request={request} hours={followupSettings?.reminder_hours??24} enabled={followupSettings?.enabled??true}/>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                             {request.property && (
                               <span className="flex items-center gap-1">
